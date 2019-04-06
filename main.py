@@ -1,21 +1,20 @@
-# Sanic Motor
-
-Example how to use [Python Sanic](https://github.com/huge-success/sanic) and [Async MongoDB Driver](https://motor.readthedocs.io/en/stable/)  
-
-## Prerequisites
-1. Install python sanic
-
-```shell
-    $ pip install sanic
-```
-2. Install Motor (Asynchronous Python driver for MongoDB)
-```bash
-    $ pip install motor
-```
-3. Create conection pool
-```python
 import urllib.parse
 import motor.motor_asyncio as async_motor
+from sanic import Sanic, response
+
+
+app = Sanic(__name__)
+
+
+@app.route("/api/foo/bar")
+async def test(request):
+    conn = request.app.config['db']
+    my_collection = 'collection_names'
+    data = list(
+        jsonify(doc) for doc in await conn[my_collection].find({}).sort("_id", 1).to_list(100)
+    )
+    return response.json({'status': 200, 'data': data}, status=200)
+
 
 @app.listener('before_server_start')
 async def register_db(app, loop):
@@ -42,11 +41,23 @@ async def register_db(app, loop):
         # in miliseconds
         serverSelectionTimeoutMS=10000
     )[database_name]
-```
 
-4. To see detail code you can check `main.py`
-5. Happy coding :)
 
-## Reference
-1. [Sanic](https://github.com/huge-success/sanic)
-2. [Async MongoDB Driver (Motor)](https://motor.readthedocs.io/en/stable/)
+@app.listener('after_server_stop')
+async def close_connection(app, loop):
+    app.config['db'].close()
+
+
+def jsonify(doc):
+    """
+    Parse asyncpg record response into JSON format
+    """
+    doc['id'] = str(doc['_id'])
+    del doc['_id']
+
+    return doc
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000,
+            access_log=True, debug=True)
