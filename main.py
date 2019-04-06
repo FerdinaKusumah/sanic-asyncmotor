@@ -50,7 +50,7 @@ async def close_connection(app, loop):
 
 def jsonify(doc):
     """
-    Parse asyncpg record response into JSON format
+    Parse _id to id and convert to string
     """
     doc['id'] = str(doc['_id'])
     del doc['_id']
